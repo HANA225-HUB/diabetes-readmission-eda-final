@@ -1,0 +1,703 @@
+% !TEX program = xelatex
+\documentclass[UTF8,a4paper,11pt,fontset=none]{ctexart}
+
+\usepackage[top=2.0cm,bottom=2.1cm,left=2.45cm,right=2.45cm]{geometry}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{threeparttable}
+\usepackage{makecell}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{placeins}
+
+\definecolor{navy}{HTML}{173F5F}
+\definecolor{teal}{HTML}{238A8D}
+\definecolor{coral}{HTML}{C95D45}
+\definecolor{lightgray}{HTML}{F3F5F7}
+\definecolor{midgray}{HTML}{657786}
+\definecolor{rulegray}{HTML}{CBD3D9}
+
+\IfFileExists{/System/Library/Fonts/Supplemental/Songti.ttc}{
+  \setCJKmainfont[
+    Path=/System/Library/Fonts/Supplemental/,
+    UprightFont={Songti.ttc}, UprightFeatures={FontIndex=6},
+    BoldFont={Songti.ttc}, BoldFeatures={FontIndex=1}
+  ]{Songti.ttc}
+  \setCJKsansfont[
+    Path=/System/Library/Fonts/,
+    UprightFont={STHeiti Light.ttc}, UprightFeatures={FontIndex=1},
+    BoldFont={STHeiti Medium.ttc}, BoldFeatures={FontIndex=1}
+  ]{STHeiti Light.ttc}
+  \setCJKmonofont[
+    Path=/System/Library/Fonts/,
+    UprightFont={STHeiti Light.ttc}, UprightFeatures={FontIndex=1}
+  ]{STHeiti Light.ttc}
+}{
+  \setCJKmainfont[BoldFont=FandolSong-Bold.otf]{FandolSong-Regular.otf}
+  \setCJKsansfont[BoldFont=FandolHei-Bold.otf]{FandolHei-Regular.otf}
+  \setCJKmonofont{FandolFang-Regular.otf}
+}
+
+\graphicspath{{figures/}}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0pt}
+\linespread{1.13}
+\setlength{\emergencystretch}{1.5em}
+\setlist{nosep,leftmargin=1.6em}
+\captionsetup{font=small,labelfont=bf,labelsep=quad,justification=centering}
+\captionsetup[sub]{font=footnotesize}
+\renewcommand{\arraystretch}{1.16}
+\setlength{\tabcolsep}{4pt}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.55em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.45em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.4em}{}
+\titlespacing*{\section}{0pt}{1.15em}{0.55em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.35em}
+
+\pagestyle{plain}
+
+\hypersetup{
+  hidelinks,
+  pdfauthor={花浩文},
+  pdftitle={纵向历史特征如何改善糖尿病患者30天再入院预测},
+  pdfsubject={探索性数据分析期末大作业}
+}
+
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{lightgray},
+  frame=single,
+  rulecolor=\color{rulegray},
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  xleftmargin=0.25em,
+  xrightmargin=0.25em,
+  aboveskip=0.6em,
+  belowskip=0.6em
+}
+
+\newcommand{\metric}[1]{\textbf{#1}}
+\newcommand{\note}[1]{\par\smallskip\noindent\colorbox{lightgray}{\parbox{\dimexpr\textwidth-2\fboxsep}{\small\textbf{说明：}#1}}\par\smallskip}
+
+\begin{document}
+
+\begin{center}
+  {\bfseries\fontsize{19.5pt}{25pt}\selectfont 纵向历史特征如何改善糖尿病患者 30 天再入院预测\par}
+  \vspace{0.45em}
+  {\large 基于 130 家美国医院住院记录的患者级建模与稳健性验证\par}
+  \vspace{0.9em}
+  {\normalsize\bfseries 花浩文\quad 2462404009\par}
+  \vspace{0.25em}
+  {\normalsize 苏州大学未来科学与工程学院\par}
+  \vspace{0.15em}
+  {\small 探索性数据分析 · 期末大作业\quad 2026 年 6 月\par}
+\end{center}
+\vspace{0.65em}
+\begin{center}
+\begin{minipage}{0.92\textwidth}
+\small
+\noindent\textbf{摘要}\quad
+30 天再入院预测同时面临目标稀疏、类别字段复杂、患者重复就诊与评价指标错配等问题。本文基于 Diabetes 130-US Hospitals 数据，围绕“静态住院信息是否足够、纵向患者历史是否带来稳定增益”展开出院时风险排序实验。经死亡/临终关怀与无效性别记录排除后，共纳入 99,340 次住院、69,987 名患者，30 天再入院率为 11.39\%。所有主实验均按 \texttt{patient\_nbr} 互斥划分，程序化阈值、融合权重和主模型选择仅基于验证集或训练集内部 out-of-fold 预测，测试集用于锁定后评价。基线阶段，Cleaned + HistGradientBoosting 在独立测试集取得 ROC-AUC 0.664、AP/PR-AUC 0.208 和 81.54\% 召回率；静态诊断码层级、就诊路径和 CatBoost 集成将 AP/PR-AUC 提升至 0.242。进一步构造严格纵向历史特征（前次诊断路径、前次出院去向、医疗强度变化、此前观测住院次数等，但不使用既往再入院标签）后，主模型 \textit{strict-history ensemble} 的测试 AP/PR-AUC 达 0.261、ROC-AUC 达 0.689，Top 5\% 高风险名单精确率为 36.75\%。患者级 Bootstrap 显示其相对非历史增强模型的 AP/PR-AUC 增益均值为 0.0181，95\% CI 为 [0.0112, 0.0254]；五折患者级交叉验证中历史特征在 5/5 折均提升，平均增益为 0.0136。允许使用既往再入院状态的敏感性上限模型 AP/PR-AUC 为 0.266，但其预测时点假设更强，故不作为主模型。去除 \texttt{encounter\_id} gap 后历史模型 AP/PR-AUC 仍为 0.259，说明主结论不依赖伪时间间隔。研究表明，医疗表格预测的关键不只是堆叠模型，而是严格定义预测时点、控制患者泄漏，并让可解释的纵向病史进入建模流程。
+
+\vspace{0.45em}
+\noindent\textbf{关键词}\quad 糖尿病；30 天再入院；纵向历史特征；类别不平衡；患者级验证；CatBoost；Bootstrap
+\end{minipage}
+\end{center}
+\vspace{1.0em}
+
+\section{引言}
+
+非计划再入院既反映疾病复杂度，也与出院衔接、随访资源和医疗成本密切相关。公开的 Diabetes 130-US Hospitals 数据覆盖 1999--2008 年美国 130 家医院，包含 101,766 次糖尿病相关住院记录和大量行政、诊断、药物及利用信息，是表格型临床预测的经典基准\cite{strack2014}。该任务的难点不只是选择分类器，还包括四个更基础的问题：如何解释高缺失字段，如何将行政编码转为可学习语义，如何处理同一患者的重复就诊，以及如何在正类率约 11\% 时选择恰当指标。预测模型研究还需要透明报告数据流、验证方式与适用边界，以减少偏倚和不可复现性\cite{steyerberg2019,collins2015,wolff2019}。
+
+已有练习常使用随机行切分、准确率或单一 ROC-AUC，这会掩盖少数类表现，并允许同一患者出现在训练与测试集合。本文将研究问题限定为：\textbf{在严格患者互斥和不平衡评价下，静态住院特征、增强类别建模与纵向患者历史分别能为 30 天再入院风险排序带来多少可复现增益？}
+
+本文的主要贡献如下：
+\begin{enumerate}
+  \item 构建从原始字段、语义清洗到领域衍生的三级特征对照，而非只报告单一最终模型；
+  \item 在静态增强特征之外，构造不使用目标标签的纵向患者历史特征，并将允许使用既往再入院状态的版本单独作为敏感性上限；
+  \item 采用患者级训练/验证/测试划分、五折分组验证、训练集内部 OOF stacking 与患者组 Bootstrap，系统控制重复患者泄漏和模型选择偏差；
+  \item 同时报告 ROC-AUC、AP/PR-AUC、Brier、$F_2$、容量 Lift、校准、决策曲线、门控融合和子群机制分析，使模型评价与实际随访资源相联系；
+  \item 通过置换重要性、关键特征消融、随机记录切分反例和亚组审计，区分预测贡献、相关性与潜在公平风险。
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.76\textwidth]{00_research_workflow.png}
+  \caption{研究流程与测试集隔离原则}
+  \label{fig:workflow}
+\end{figure}
+
+\section{数据与研究队列}
+
+\subsection{数据来源与结局定义}
+
+原始数据含 50 个字段，包括人口学特征、入院方式、出院去向、诊断、实验室检查、药物状态与过去一年医疗利用。目标变量定义为
+\begin{equation}
+ y_i = \mathbb{I}(\texttt{readmitted}_i=\texttt{<30}),
+\end{equation}
+即第 $i$ 次住院是否在出院后 30 天内再次入院。原始结局 \texttt{>30} 与 \texttt{NO} 均记为负类。
+
+由于死亡或临终关怀患者不存在通常意义上的可干预再入院机会，排除出院代码 11、13、14、19、20、21，共 2,423 条；另排除 3 条无效性别记录。最终分析队列见表~\ref{tab:cohort}。
+
+\begin{table}[H]
+\centering
+\caption{研究队列与患者级数据划分}
+\label{tab:cohort}
+\begin{tabular}{lrrr}
+\toprule
+集合 & 患者数 & 记录数 & 正类率 \\
+\midrule
+训练集 & 44,791 & 63,594 & 11.50\% \\
+验证集 & 11,198 & 15,840 & 11.24\% \\
+测试集 & 13,998 & 19,906 & 11.16\% \\
+\midrule
+合计 & 69,987 & 99,340 & 11.39\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.72\textwidth]{01_target_distribution.png}
+  \caption{目标分布显示明显类别不平衡}
+\end{figure}
+
+\subsection{缺失机制与样本相关性}
+
+\texttt{weight}、\texttt{max\_glu\_serum} 与 \texttt{A1Cresult} 缺失率分别为 96.86\%、94.75\% 和 83.28\%。这类缺失并不等同于随机丢失：未检测本身可能反映临床路径。本文因此对高缺失实验室变量采用“是否检测 + 检测结果”的双通道表达；对支付编码仅保留是否记录，避免把高维行政类别误解释为临床因果因素。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{02_missingness.png}
+  \caption{缺失率最高的原始字段}
+  \label{fig:missing}
+\end{figure}
+
+23.35\% 的患者存在多次住院，单名患者最多出现 40 次。若按记录随机切分，模型可能在测试集中识别训练阶段已见患者的利用模式。为此，先按患者是否曾发生 30 天再入院进行分层，再划分患者 ID；同一患者的全部记录只属于一个集合。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.70\textwidth]{08_repeat_patients.png}
+  \caption{重复患者分布与分组划分必要性}
+\end{figure}
+
+\section{探索性数据分析}
+
+\subsection{年龄与既往医疗利用}
+
+不同年龄段的再入院率并非严格单调。70--80 岁和 80--90 岁组分别约为 12.06\% 与 12.57\%；20--30 岁组虽达到 14.31\%，但样本量明显更小，不能脱离不确定性解读。相比之下，过去一年住院次数呈清晰梯度：无既往住院时再入院率为 8.59\%，1 次为 13.25\%，2 次为 17.93\%，5 次及以上达到 37.13\%。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\linewidth]{03_readmission_by_age.png}
+    \caption{年龄组}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\linewidth]{04_readmission_by_prior_inpatient.png}
+    \caption{过去一年住院次数}
+  \end{subfigure}
+  \caption{30 天再入院率的年龄与既往利用梯度}
+  \label{fig:eda-risk}
+\end{figure}
+\FloatBarrier
+
+\subsection{护理路径、实验室与相关结构}
+
+急诊入院、转入和不同出院去向对应不同风险水平。HbA1c 未检测组占比很大，因此直接删除缺失记录会造成严重选择偏差。数值变量相关性总体有限，但住院天数、检查数量、药物数量和诊断数量存在中等相关，提示简单累加的强度特征可能产生冗余。
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.72\textwidth]{05_readmission_by_care_path.png}
+  \caption{入院来源与出院去向的风险差异}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.70\textwidth]{06_correlation_heatmap.png}
+  \caption{主要数值变量相关结构}
+\end{figure}
+
+\section{特征工程}
+
+\subsection{三级特征方案}
+
+为隔离特征工程的边际作用，设计三套嵌套方案：
+\begin{description}[leftmargin=0pt,labelindent=0pt]
+  \item[Raw] 保留 41 个可用原始字段，只进行必要填补与编码；
+  \item[Cleaned] 将年龄区间转为中点，将入院来源、入院类型与出院去向映射为临床语义组，合并低频专科并显式表达缺失语义，共 43 个输入列；
+  \item[Engineered] 在 Cleaned 基础上加入诊断系统组、既往利用汇总、活跃药物数、剂量变化数、按住院日标准化的检查/药物/操作强度，以及 HbA1c/血糖“是否检测”和“是否异常”，共 66 个输入列。
+\end{description}
+
+代表性变量为
+\begin{align}
+\text{prior visits} &= n_{outpatient}+n_{emergency}+n_{inpatient},\\
+\text{care intensity} &= \frac{n_{lab}+2n_{procedure}+n_{medication}}{\max(d,1)}.
+\end{align}
+这些派生量均在出院预测时点可获得。本文不将患者全样本出现次数作为预测特征，因为它利用了未来记录数量；该变量仅用于描述重复就诊。
+
+\begin{table}[H]
+\centering
+\caption{特征工程的主要组成}
+\begin{tabularx}{0.88\textwidth}{lX}
+\toprule
+维度 & 代表变量与作用 \\
+\midrule
+语义映射 & 年龄中点、入院组、出院组、诊断系统组 \\
+缺失表达 & payer 可得性、A1C 是否检测、血糖是否检测 \\
+医疗利用 & 既往住院/急诊/门诊及其汇总 \\
+用药行为 & 活跃药物数、剂量改变数、胰岛素状态 \\
+护理强度 & 每日检查、操作、药物和综合强度 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{纵向历史特征与预测时点}
+
+静态住院特征只能描述当前一次住院以及数据集中给出的过去一年利用次数。由于同一患者可能有多次观测住院，本文进一步构造\textbf{严格纵向历史特征}：按 \texttt{patient\_nbr} 与 \texttt{encounter\_id} 排序，仅使用当前记录之前已经出现的同患者住院信息，包括此前观测住院次数、前次诊断组、前次入院来源、前次出院去向、前次胰岛素/用药变化状态，以及当前与前次住院在检查数、药物数、诊断数和综合护理强度上的差值。该设定不使用任何既往 \texttt{readmitted} 标签，因此更接近出院时能够由院内历史病历抽取的非目标信息。由于 \texttt{encounter\_id} 不能解释为真实日期或时间间隔，本文将其仅作为同一患者内部排序依据；对由 \texttt{encounter\_id} 差值构造的 gap 特征另做去除消融，不把它作为临床核心解释变量。
+
+同时，考虑到某些真实医院信息系统可能知道患者此前是否曾 30 天再入院，本文另构造\textbf{目标历史敏感性版本}，加入前次 \texttt{readmitted} 状态、此前观测 30 天再入院次数与比例。该版本只作为上限和敏感性分析，不作为默认主模型，以避免预测时点假设被过度放宽。
+
+\begin{table}[H]
+\centering
+\caption{纵向历史特征的两种设定}
+\begin{tabularx}{0.92\textwidth}{lX}
+\toprule
+设定 & 特征内容与使用边界 \\
+\midrule
+严格历史特征 & 前次诊断/路径/治疗状态、前次利用强度、当前--前次变化量、此前观测住院次数；不使用任何再入院标签 \\
+目标历史敏感性 & 在严格历史基础上加入前次再入院状态、此前 30 天再入院次数和比例；仅作为预测时点放宽后的上限分析 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{模型与实验设计}
+
+\subsection{候选模型}
+
+逻辑回归作为线性基线：数值变量中位数填补并标准化，类别变量采用低频合并后的 One-Hot 编码，使用 $L_2$ 正则。HistGradientBoosting 作为非线性主模型，采用 220 轮、学习率 0.06、最多 31 个叶节点、叶节点最少 30 个样本与早停\cite{friedman2001}。
+
+为检验序数编码是否限制类别学习，补充 CatBoost 原生类别分支\cite{prokhorenkova2018}。早期静态特征实验仅在验证集比较预先限定的深度/正则组合；随后加入诊断码前缀、诊断组合、就诊路径组合和药物交互，并与 LightGBM、XGBoost 做验证集融合\cite{ke2017,chen2016}。最终主线使用 CatBoost 原生类别模型训练严格历史特征，候选分支包括 prefix regularized、prefix slow、full MVS 和 full Bernoulli 四类；主模型 \textit{strict-history ensemble} 的权重由验证集 AP/PR-AUC 选择。为检查融合是否过拟合验证集，另做训练集内部 3 折患者级 out-of-fold stacking\cite{wolpert1992}。
+
+\subsection{指标与阈值}
+
+不平衡任务中，ROC-AUC 可能在大量真负类影响下显得乐观，因此以 Average Precision（即 \texttt{sklearn.metrics.average\_precision\_score}，下文简称 AP/PR-AUC）作为关键排序指标\cite{davis2006,saito2015}。同时报告 Brier score\cite{brier1950}、召回率、精确率、特异度、$F_1$ 与 $F_2$\cite{powers2011}：
+\begin{equation}
+ F_2 = \frac{(1+2^2)PR}{2^2P+R},
+\end{equation}
+其中召回率的权重高于精确率。各模型只在验证集的 0.03--0.50 范围搜索 $F_2$ 最大阈值，然后锁定并评价测试集。
+
+\subsection{稳健性与实际效用}
+
+内部稳健性通过五折分组验证、训练集内部 OOF stacking、患者组 Bootstrap、encounter-id gap 消融和关键特征消融评估；早期 CatBoost 与 HistGradientBoosting 的差异另做患者级配对 Bootstrap\cite{kohavi1995,efron1993}。最终历史模型使用 1000 次患者级 Bootstrap 估计 AP/PR-AUC、ROC-AUC 与 Top 5\% 精确率的配对差异。实际工作流通过 top-$k$ 容量分析与决策曲线评价。阈值 $p_t$ 下的净收益定义为\cite{vickers2006}
+\begin{equation}
+ NB(p_t)=\frac{TP}{N}-\frac{FP}{N}\frac{p_t}{1-p_t}.
+\end{equation}
+
+\section{实验结果}
+
+\subsection{六组基础对照}
+
+表~\ref{tab:models} 显示 HistGradientBoosting 在三套特征上均优于逻辑回归，说明非线性阈值与交互重要。Raw + HistGB 的 AP/PR-AUC 最高（0.210），Cleaned + HistGB 的 ROC-AUC 最高（0.664）。Engineered + HistGB 未继续提高排序性能，特征数量与性能并非单调关系。
+
+\begin{table}[htbp]
+\centering
+\caption{患者互斥测试集上的六组基础模型结果；阈值由验证集选择}
+\label{tab:models}
+\begin{threeparttable}
+\small
+\begin{tabular}{llrrrrrr}
+\toprule
+特征方案 & 模型 & ROC-AUC & AP/PR-AUC & 召回率 & 精确率 & $F_2$ & 阈值 \\
+\midrule
+Raw & Logistic Regression & 0.652 & 0.199 & 72.62\% & 15.23\% & 0.414 & 0.092 \\
+Raw & HistGradientBoosting & 0.662 & \textbf{0.210} & 73.62\% & 15.18\% & 0.416 & 0.095 \\
+Cleaned & Logistic Regression & 0.647 & 0.190 & 81.45\% & 13.72\% & 0.410 & 0.082 \\
+Cleaned & HistGradientBoosting & \textbf{0.664} & 0.208 & \textbf{81.54\%} & 14.20\% & \textbf{0.418} & 0.080 \\
+Engineered & Logistic Regression & 0.649 & 0.194 & 79.96\% & 13.79\% & 0.408 & 0.080 \\
+Engineered & HistGradientBoosting & 0.662 & 0.209 & 76.50\% & 14.73\% & 0.416 & 0.087 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}[flushleft]\footnotesize
+\item 注：粗体分别标记主要排序指标、筛查召回和预设 $F_2$ 选择标准下的最优值；不同目标对应不同“最佳”模型。
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\linewidth]{09_model_comparison.png}
+    \caption{排序性能}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\linewidth]{14_threshold_tradeoff.png}
+    \caption{阈值指标}
+  \end{subfigure}
+  \caption{特征工程对排序能力与筛查阈值的不同影响}
+  \label{fig:model-main}
+\end{figure}
+
+按验证集 $F_2$ 选出的 Cleaned + HistGB 在 19,906 条测试记录中得到真阳性 1,811、假阴性 410、真阴性 6,743、假阳性 10,942。召回率 81.54\%，比 Raw + HistGB 高 7.92 个百分点；但精确率由 15.18\% 降至 14.20\%，特异度由 48.32\% 降至 38.13\%。因此 Cleaned 的价值是高召回筛查，而不是显著提高排序。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{10_roc_pr_curves.png}
+  \caption{HistGradientBoosting 的 ROC 与 PR 曲线}
+\end{figure}
+
+\subsection{患者分组五折与 CatBoost}
+
+Cleaned + HistGB 的五折 ROC-AUC 为 $0.6661\pm0.0028$，AP/PR-AUC 为 $0.2165\pm0.0052$。固定 295 轮的 Engineered CatBoost 在相同五个患者折上取得 $0.6693\pm0.0035$ 与 $0.2191\pm0.0051$，五折 AP/PR-AUC 均小幅提高 0.0009--0.0041。
+
+然而，独立测试集上 CatBoost 的 AP/PR-AUC 为 0.2102，与 Cleaned HistGB 的差均值为 0.00275。患者级配对 Bootstrap 的 95\% 区间下限为 -0.00394，上限为 0.00943。相对 Raw HistGB 的差均值为 -0.00018，区间下限为 -0.00682，上限为 0.00636。因此原生类别建模提供一致但很小的内部验证收益，尚不足以证明测试性能稳定优越。
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.88\textwidth]{catboost_validation.png}
+  \caption{CatBoost 与 HistGradientBoosting 的五折比较及测试集配对 Bootstrap}
+  \label{fig:catboost}
+\end{figure}
+
+\subsection{纵向历史特征：主要性能跃迁}
+
+静态增强阶段首先将诊断码前缀、诊断组合、原始就诊路径、药物交互和 CatBoost/LightGBM 融合纳入模型，非历史增强集成的测试 AP/PR-AUC 达到 0.242、ROC-AUC 达到 0.678，已经明显高于基础 HistGB。进一步加入严格纵向历史特征后，\textit{strict-history ensemble} 的测试 AP/PR-AUC 提升至 0.261，ROC-AUC 提升至 0.689，Brier score 降至 0.0925。若允许使用既往再入院状态，目标历史敏感性上限模型 AP/PR-AUC 为 0.266，但该设定依赖更强的预测时点假设，故不作为默认主模型。
+
+\begin{table}[H]
+\centering
+\caption{主模型与敏感性上限模型的测试集表现}
+\label{tab:history-main}
+\small
+\begin{threeparttable}
+\begin{tabular}{lccrrrr}
+\toprule
+模型 & 目标历史 & 默认主模型 & ROC-AUC & AP/PR-AUC & Brier & $F_2$ \\
+\midrule
+非历史增强集成 & 否 & 否 & 0.678 & 0.242 & 0.0936 & 0.420 \\
+严格纵向历史主模型 & 否 & 是 & \textbf{0.689} & \textbf{0.261} & \textbf{0.0925} & \textbf{0.425} \\
+目标历史敏感性上限 & 是 & 否 & 0.689 & 0.266$^\dagger$ & 0.0923$^\dagger$ & 0.426$^\dagger$ \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}[flushleft]\footnotesize
+\item 注：粗体标记本文默认主模型，而非逐列数值最优。$^\dagger$ 表示目标历史敏感性上限依赖既往再入院状态可得的更强假设，不作为默认部署方案。验证集 $F_2$ 阈值下，严格历史主模型的宽筛查精确率为 14.97\%、召回率为 78.48\%。
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.96\textwidth]{history_final_metrics.png}
+  \caption{纵向历史特征相对静态增强模型的性能提升}
+  \label{fig:history-main}
+\end{figure}
+
+容量分析给出更接近工作流的解释：验证集 $F_2$ 阈值对应宽筛查模式，会覆盖大量出院记录，因此 14.97\% 的精确率不应被解读为最终干预名单质量。若随访资源只覆盖风险最高 5\% 的患者，非历史增强集成精确率为 34.14\%，严格历史主模型提高到 36.75\%，对应 Lift 为 3.29；风险最高 3\% 人群精确率从 39.97\% 提高到 42.64\%。以测试集 19,906 次住院计，Top 5\% 名单包含 996 人，严格历史模型捕获 366 例真实 30 天再入院，比非历史增强模型多 26 例，比随机名单期望多约 255 例。这意味着纵向历史模型的主要价值是风险排序和随访优先级分配，而不是自动替代临床决策。
+
+\begin{table}[H]
+\centering
+\caption{最终模型的高风险名单容量分析}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+模型 & 容量 & 精确率 & 捕获率 & Lift \\
+\midrule
+非历史增强集成 & 3\% & 39.97\% & 10.76\% & 3.58 \\
+严格历史主模型 & 3\% & \textbf{42.64\%} & \textbf{11.48\%} & \textbf{3.82} \\
+目标历史敏感性 & 3\% & 44.15\% & 11.89\% & 3.96 \\
+\midrule
+非历史增强集成 & 5\% & 34.14\% & 15.31\% & 3.06 \\
+严格历史主模型 & 5\% & \textbf{36.75\%} & \textbf{16.48\%} & \textbf{3.29} \\
+目标历史敏感性 & 5\% & 37.85\% & 16.97\% & 3.39 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{final_history_topk_absolute.png}
+  \caption{同等随访容量下严格历史主模型捕获更多真实再入院病例}
+  \label{fig:history-topk-absolute}
+\end{figure}
+
+\subsection{历史特征增益的稳健性}
+
+为了排除单次划分偶然性，本文在全部数据上做五折患者级交叉验证，比较相同 CatBoost 架构下是否加入严格历史特征。无历史模型的平均 AP/PR-AUC 为 $0.2480\pm0.0062$，严格历史模型为 $0.2616\pm0.0083$；五个折均为正增益，平均提升 0.0136。该结果说明纵向历史不是针对测试集调参得到的偶然收益。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{history_cv_stability.png}
+  \caption{患者级五折验证中严格历史特征的稳定增益}
+  \label{fig:history-cv}
+\end{figure}
+
+患者级 Bootstrap 进一步支持该结论。相对非历史增强集成，严格历史主模型的 AP/PR-AUC 增益均值为 0.0181，95\% CI 为 [0.0112, 0.0254]，1000 次重采样中均为正；ROC-AUC 增益均值为 0.0118，Top 5\% 精确率增益均值为 0.0285。目标历史敏感性上限相对非历史模型的 AP/PR-AUC 增益为 0.0232，但相对严格历史模型的增益区间轻微跨 0，因此更适合解释为预测时点放宽后的上限而非必须采用的主方案。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{history_bootstrap_delta.png}
+  \caption{患者级 Bootstrap 下纵向历史模型的配对增益}
+  \label{fig:history-bootstrap}
+\end{figure}
+
+为检查验证集融合是否过拟合，本文用训练集内部 3 折患者级 out-of-fold 预测学习 convex stacking 与 logistic stacking。OOF convex 模型在测试集 AP/PR-AUC 为 0.2612，略高于验证集选择的严格历史主模型 0.2607，但 Bootstrap 区间跨 0；logistic stacking 的 ROC-AUC 略高，但 AP/PR-AUC 同样没有显著差异。因此，当前验证集融合没有明显过拟合迹象，但也没有必要为了极小涨幅替换主模型。
+
+此外，考虑到 \texttt{encounter\_id} 只代表数据中的记录顺序而非真实日期，本文专门去除 encounter-id gap 及其对数变换后重训四个历史 CatBoost 分支，并再次按验证集 AP 融合。去 gap 历史模型测试 AP 为 0.259、ROC-AUC 为 0.689，距离完整严格历史主模型仅约 0.001 AP，但仍显著高于非历史增强模型 0.242。因此，纵向历史增益并非由伪时间间隔单独驱动；若实际部署对该变量敏感，可采用去 gap 版本作为保守替代。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.84\textwidth]{history_gap_ablation.png}
+  \caption{去除 \texttt{encounter\_id} gap 后历史模型增益仍然稳定}
+  \label{fig:history-gap-ablation}
+\end{figure}
+
+\subsection{历史特征的作用机制}
+
+子群分析显示，历史特征的收益高度集中在“已有既往观测住院”的患者。对于首次观测住院，非历史增强模型和严格历史模型 AP/PR-AUC 分别为 0.1972 与 0.1969，几乎没有差异；对于已有既往观测住院，AP/PR-AUC 从 0.2907 提升到 0.3303。该结果符合特征构造逻辑：如果患者在数据中没有此前观测住院，纵向历史特征主要退化为缺省或零值；如果患者已有多次记录，前次诊断路径和治疗强度变化提供了真实的病程信息。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{history_subgroup_effect.png}
+  \caption{纵向历史模型的收益主要来自有既往观测住院的患者}
+  \label{fig:history-subgroup}
+\end{figure}
+
+基于该发现，本文额外尝试历史可用性门控融合：首次观测住院更多使用非历史增强模型，有既往观测住院更多使用历史模型。验证集确实选择了近似这一结构，但测试 AP/PR-AUC 仅从 0.26067 微升至 0.26088，Bootstrap 区间跨 0，Top 5\% 精确率甚至略不稳定。因此门控融合保留为解释性验证，不替代主模型。
+
+\subsection{最终模型校准与决策曲线}
+
+最终严格历史主模型在测试集上的 Brier score 为 0.0925，相对仅预测基准发生率的 Brier skill 为 6.66\%，10 组分位 ECE 为 0.0048；校准截距为 0.053、斜率为 1.048，整体接近理想校准。决策曲线显示，在 0.03--0.30 的风险阈值范围内，严格历史主模型均优于“全部干预”和“不干预”两种默认策略，并在约 0.05--0.30 范围内略优于非历史增强集成。该结果与 Top-$k$ 容量分析一致：最终模型适合做出院后随访优先级排序，而非以单一阈值自动触发干预。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{final_history_calibration_dca.png}
+  \caption{最终严格历史主模型的校准与决策曲线}
+  \label{fig:final-cal-dca}
+\end{figure}
+
+\subsection{早期基线校准与学习曲线}
+
+HistGB 原始概率的校准截距为 0.039、斜率为 1.035、10 组 ECE 为 0.0031，已经接近理想值。Platt 校准仅将 Brier score 从 0.095254 微降至 0.095249；Isotonic 虽降低 ECE，却因阶梯映射造成并列排序，使 AP/PR-AUC 降至 0.197。CatBoost 的原始校准斜率为 1.012、截距为 0.008，同样无需强制后校准。该结果说明校准应以独立验证证据决定，而非作为固定装饰步骤\cite{guo2017,vancalster2019}。
+
+学习曲线显示，训练患者从约 8,958 增至 44,791 时，验证 ROC-AUC 从 0.6418 增至 0.6608，AP/PR-AUC 从 0.1919 增至 0.2063，末端仍未明显平台化。相较继续增加相似模型，获取更多近期、多中心且包含出院后信息的数据更可能带来稳定收益。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\linewidth]{calibration_summary.png}
+    \caption{校准误差与斜率/截距}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\linewidth]{02_learning_curve.png}
+    \caption{患者规模学习曲线}
+  \end{subfigure}
+  \caption{概率可靠性与样本规模上限分析}
+  \label{fig:cal-learning}
+\end{figure}
+
+\subsection{基线模型的有限随访容量与决策曲线}
+
+在早期 Cleaned + HistGB 基线中，风险最高的 5\% 测试记录包含 268 例正类，精确率 26.91\%，捕获 12.07\% 的全部再入院病例，Lift 为 2.41；10\% 容量可捕获 22.11\% 病例，Lift 为 2.21；20\% 容量可捕获 38.50\%。容量扩大提高覆盖率，但边际精确率逐步下降。该结果作为后续历史模型容量提升的基线参照。
+
+\begin{table}[H]
+\centering
+\caption{按风险排序的随访容量分析}
+\begin{tabular}{rrrr}
+\toprule
+容量 & 精确率 & 捕获率 & Lift \\
+\midrule
+5\% & 26.91\% & 12.07\% & 2.41 \\
+10\% & 24.66\% & 22.11\% & 2.21 \\
+20\% & 21.47\% & 38.50\% & 1.92 \\
+30\% & 18.57\% & 49.93\% & 1.66 \\
+40\% & 17.20\% & 61.68\% & 1.54 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+决策曲线进一步考虑假阳性干预代价。HistGB 在阈值 0.03--0.30、CatBoost 在约 0.025--0.30 范围内同时优于“全部干预”和“完全不干预”。两模型净收益曲线几乎重合，再次表明其实际差异小于模型名称所暗示的差异。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{03_decision_curve.png}
+  \caption{模型与两种默认策略的决策曲线}
+  \label{fig:dca}
+\end{figure}
+
+\section{解释、消融与偏倚审计}
+
+本节保留早期 Cleaned + HistGB 基线的可解释性、错误模式和公平性审计，用于说明核心风险信号和验证设计风险；最终历史模型的增益机制已在上一节通过重复住院子群、Bootstrap 与门控融合单独验证。这样区分可以避免把基线阈值下的混淆矩阵误读为最终主模型表现。
+
+\subsection{全局重要性与消融}
+
+测试集置换重要性\cite{altmann2010}显示，过去一年住院次数导致的 AP/PR-AUC 平均下降约 0.061，显著高于出院去向（0.020）、payer 可得性（0.007）与其他变量。消融结果提供独立验证：移除既往住院次数后 AP/PR-AUC 从 0.208 降至 0.170；同时移除既往住院、出院去向和 payer 可得性后降至 0.149。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\linewidth]{12_permutation_importance.png}
+    \caption{测试集置换重要性}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\linewidth]{17_feature_ablation.png}
+    \caption{关键特征消融}
+  \end{subfigure}
+  \caption{关键预测信号的两种互补验证}
+  \label{fig:importance-ablation}
+\end{figure}
+
+这并不证明既往住院或出院去向会导致再入院。前者可能代理疾病负担和未观测脆弱性，后者可能同时反映病情、社会支持与机构流程。payer 可得性更可能是数据完整性或保险流程的代理，尤其不应作因果解释。
+
+\subsection{错误模式}
+
+在 Cleaned + HistGB 基线的验证集阈值下，410 个假阴性的平均既往住院次数仅 0.002，说明模型最容易漏掉没有历史利用信号、却在本次出院后快速再入院的患者。10,942 个假阳性的平均年龄为 69.2 岁、既往住院 0.89 次、住院 5.02 天、诊断 7.96 个，更像“临床复杂但未在 30 天内发生结局”的人群。它们并非完全无风险，但会显著增加人工复核成本。
+
+\subsection{亚组表现}
+
+女性与男性召回率分别为 82.70\% 和 80.21\%；Caucasian 与 AfricanAmerican 组分别为 82.88\% 和 78.78\%。种族缺失组的召回率为 67.50\%，提示数据完整性可能影响模型表现。Hispanic 组精确率较高，但测试样本仅 437 条，不宜以点估计作强结论。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.75\textwidth]{13_subgroup_performance.png}
+  \caption{主要种族组的召回率与精确率}
+\end{figure}
+
+\subsection{随机记录切分的泄漏反例}
+
+当按住院记录随机切分时，5,991 名患者同时出现在训练与测试集，AP/PR-AUC 从患者互斥评估的 0.208 升至 0.227，ROC-AUC 从 0.664 升至 0.674。该实验不用于选择模型，而是作为方法反例，说明重复患者泄漏足以制造看似合理的性能提升。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.68\textwidth]{18_split_leakage.png}
+  \caption{患者互斥切分与随机记录切分的对照}
+\end{figure}
+
+\section{讨论}
+
+\subsection{从静态特征到纵向历史}
+
+Raw 特征已经包含大量药物状态和行政编码，提升树可直接从中学习部分阈值与交互；Cleaned 将编码转为稳定语义并改变概率分布，因此在验证集选择的低阈值下提高了召回，但没有提高 AP/PR-AUC；Engineered 又加入与原变量高度相关的利用汇总、强度比率和诊断组，冗余可能抵消额外信息。CatBoost 对原生类别的更合理处理在五折中提供小幅一致收益，却仍未在独立测试集表现为统计稳定的优势。
+
+真正的跃迁来自纵向历史特征。原因并不神秘：对已有多次住院记录的患者，前次诊断路径、治疗状态和护理强度变化描述了疾病轨迹；对首次观测住院患者，这些变量退化为缺省信息，增益自然很小。子群分析正好验证了这一点。因此，本文对“特征工程有效”的定义不是特征越多或 AUC 必然越高，而是：特征必须与预测时点、患者轨迹和使用场景一致。静态清洗提升可解释性，诊断码层级和类别模型提升排序，纵向历史则提供真正新的病程信息。
+
+\texttt{encounter\_id} gap 消融进一步说明，历史模型的优势不是由记录编号间隔这一伪时间变量单独制造的。去 gap 模型的 AP/PR-AUC 仍为 0.259，接近完整历史模型的 0.261，并保持对非历史增强模型的明显优势。换言之，主结论依赖的是前次诊断路径、治疗状态、利用强度和重复住院轨迹，而不是把递增编号当作真实时间。
+
+\subsection{为何不选择最高分敏感性模型}
+
+目标历史敏感性模型取得更高 AP/PR-AUC，但它使用了患者此前是否 30 天再入院这一目标相关历史事实。若实际部署场景能够稳定访问该历史标签，它是合理的上限模型；若数据来自跨院网络或出院时无法确认既往结局，则容易引入预测时点争议。本文因此将严格历史模型设为主模型，把目标历史模型作为敏感性分析。这个选择牺牲了少量分数，却换来更清晰的研究边界。
+
+OOF stacking 与历史可用性门控融合均未带来显著 AP/PR-AUC 增益。它们的价值不是替代主模型，而是验证当前融合策略没有明显依赖测试集偶然性，并解释为何历史信息主要作用于重复观测患者。
+
+\subsection{应用含义}
+
+模型适合定位为出院时风险排序工具，而非自动干预决策。若随访资源充足且漏掉高风险患者代价较高，可采用验证集选择的 $F_2$ 阈值筛查；若只能覆盖少量患者，应使用严格历史主模型的 top-$k$ 名单，并结合医护人员判断、社会支持与可干预因素复核。对于首次观测住院患者，模型缺少纵向病史支持，风险分数应更谨慎解释；对于重复住院患者，历史模型的排序更有优势。决策曲线只表达假阳性与真阳性的相对权衡，不能替代真实成本、干预效果和患者偏好。
+
+\subsection{局限性}
+
+本研究仍有以下限制：
+\begin{enumerate}
+  \item 数据来自 1999--2008 年美国医疗系统，支付方式、诊疗流程和人群结构已经变化，不能直接迁移到当前中国医院；
+  \item 结局未区分计划性与非计划性再入院，也无法观测数据网络之外的就诊；
+  \item 数据没有可靠医院 ID 和精确日期，患者级随机验证不能替代医院外或时间外验证；本文没有把递增的 \texttt{encounter\_id} 冒充真实时间，并通过去 gap 消融检查该风险；
+  \item 出院去向和完整住院过程决定预测时点为出院时，若需入院早期预警，必须重建特征集；
+  \item 严格纵向历史特征假设可访问同一患者此前在数据网络中的住院信息；若实际系统无法完成跨院患者匹配，历史模型的增益会下降；
+  \item 目标历史敏感性模型使用既往再入院状态，只能在该信息确实可于预测时点获得时部署；
+  \item 亚组分析是描述性审计，部分少数组样本有限，未进行正式公平约束或多重比较校正；
+  \item 所有重要性均为关联预测贡献，不能解释为治疗或利用行为的因果效应。
+\end{enumerate}
+
+\section{结论}
+
+本文以 99,340 次住院和 69,987 名患者为基础，完成了从数据审计、探索分析、静态特征工程、患者互斥建模到纵向历史特征、稳健性、校准、消融、容量和决策曲线的完整流程。HistGradientBoosting 明显优于线性基线；Cleaned + HistGB 在预设 $F_2$ 选择标准下取得 ROC-AUC 0.664、AP/PR-AUC 0.208 和 81.54\% 召回率。静态增强 CatBoost 集成将 AP/PR-AUC 提升至 0.242，而严格纵向历史主模型进一步达到 ROC-AUC 0.689、AP/PR-AUC 0.261、Top 5\% 精确率 36.75\%；去除 \texttt{encounter\_id} gap 后 AP/PR-AUC 仍为 0.259。
+
+患者级 Bootstrap、五折验证和去 gap 消融均表明，严格历史特征相对非历史增强模型有稳定增益；目标历史敏感性模型可作为预测时点放宽后的上限，但不宜混入主模型。最强预测信号从单次住院变量扩展为患者病程轨迹；随机记录切分会造成明显乐观偏差。高质量医疗预测的关键不是盲目堆叠复杂模型，而是让特征、划分、指标、预测时点和使用场景形成一致的研究设计。
+
+\FloatBarrier
+\section*{复现说明}
+\addcontentsline{toc}{section}{复现说明}
+
+实验使用 Python 3.11.15、pandas 3.0.1、NumPy 2.4.3、scikit-learn 1.8.0\cite{pedregosa2011} 与 CatBoost 1.2.10。数据划分随机种子为 42；CatBoost 主要分支使用预设训练种子 3407；训练集内部 OOF/调参过程使用 20260626 等固定种子，具体见脚本。输入文件为 \texttt{diabetic\_data.csv} 与 \texttt{IDS\_mapping.csv}。完整程序另存为课程要求的 TXT，主流程可在已配置环境中运行：
+
+\begin{lstlisting}[language=bash]
+/Users/huahaowen/miniforge3/envs/torch-m4/bin/python \
+  diabetes_readmission_project.py
+\end{lstlisting}
+
+代码输出数据审计、患者划分、模型比较、五折验证、Bootstrap、容量分析、消融、泄漏对照、CatBoost、纵向历史特征、\texttt{encounter\_id} gap 消融、OOF stacking、门控融合、校准、学习曲线、决策曲线与亚组审计所需的全部表格和图形。原始数据不被修改。
+
+\begin{thebibliography}{99}
+\small
+\bibitem{strack2014}
+Strack B, DeShazo J P, Gennings C, et al. Impact of HbA1c measurement on hospital readmission rates: analysis of 70,000 clinical database patient records. \textit{BioMed Research International}, 2014: 781670.
+
+\bibitem{davis2006}
+Davis J, Goadrich M. The relationship between Precision-Recall and ROC curves. \textit{Proceedings of the 23rd International Conference on Machine Learning}, 2006: 233--240.
+
+\bibitem{friedman2001}
+Friedman J H. Greedy function approximation: a gradient boosting machine. \textit{The Annals of Statistics}, 2001, 29(5): 1189--1232.
+
+\bibitem{prokhorenkova2018}
+Prokhorenkova L, Gusev G, Vorobev A, et al. CatBoost: unbiased boosting with categorical features. \textit{Advances in Neural Information Processing Systems}, 2018, 31.
+
+\bibitem{ke2017}
+Ke G, Meng Q, Finley T, et al. LightGBM: a highly efficient gradient boosting decision tree. \textit{Advances in Neural Information Processing Systems}, 2017, 30.
+
+\bibitem{chen2016}
+Chen T, Guestrin C. XGBoost: a scalable tree boosting system. \textit{Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining}, 2016: 785--794.
+
+\bibitem{wolpert1992}
+Wolpert D H. Stacked generalization. \textit{Neural Networks}, 1992, 5(2): 241--259.
+
+\bibitem{vickers2006}
+Vickers A J, Elkin E B. Decision curve analysis: a novel method for evaluating prediction models. \textit{Medical Decision Making}, 2006, 26(6): 565--574.
+
+\bibitem{vancalster2019}
+Van Calster B, McLernon D J, van Smeden M, et al. Calibration: the Achilles heel of predictive analytics. \textit{BMC Medicine}, 2019, 17: 230.
+
+\bibitem{pedregosa2011}
+Pedregosa F, Varoquaux G, Gramfort A, et al. Scikit-learn: machine learning in Python. \textit{Journal of Machine Learning Research}, 2011, 12: 2825--2830.
+
+\bibitem{steyerberg2019}
+Steyerberg E W. \textit{Clinical Prediction Models}. 2nd ed. Cham: Springer, 2019.
+
+\bibitem{altmann2010}
+Altmann A, Tolo\c{s}i L, Sander O, Lengauer T. Permutation importance: a corrected feature importance measure. \textit{Bioinformatics}, 2010, 26(10): 1340--1347.
+
+\bibitem{powers2011}
+Powers D M W. Evaluation: from precision, recall and F-measure to ROC, informedness, markedness and correlation. \textit{Journal of Machine Learning Technologies}, 2011, 2(1): 37--63.
+
+\bibitem{saito2015}
+Saito T, Rehmsmeier M. The Precision-Recall plot is more informative than the ROC plot when evaluating binary classifiers on imbalanced datasets. \textit{PLoS ONE}, 2015, 10(3): e0118432.
+
+\bibitem{guo2017}
+Guo C, Pleiss G, Sun Y, Weinberger K Q. On calibration of modern neural networks. \textit{Proceedings of the 34th International Conference on Machine Learning}, 2017: 1321--1330.
+
+\bibitem{collins2015}
+Collins G S, Reitsma J B, Altman D G, Moons K G M. Transparent reporting of a multivariable prediction model for individual prognosis or diagnosis (TRIPOD): the TRIPOD statement. \textit{Annals of Internal Medicine}, 2015, 162(1): 55--63.
+
+\bibitem{wolff2019}
+Wolff R F, Moons K G M, Riley R D, et al. PROBAST: a tool to assess the risk of bias and applicability of prediction model studies. \textit{Annals of Internal Medicine}, 2019, 170(1): 51--58.
+
+\bibitem{efron1993}
+Efron B, Tibshirani R J. \textit{An Introduction to the Bootstrap}. New York: Chapman \& Hall, 1993.
+
+\bibitem{kohavi1995}
+Kohavi R. A study of cross-validation and bootstrap for accuracy estimation and model selection. \textit{Proceedings of the 14th International Joint Conference on Artificial Intelligence}, 1995: 1137--1145.
+
+\bibitem{brier1950}
+Brier G W. Verification of forecasts expressed in terms of probability. \textit{Monthly Weather Review}, 1950, 78(1): 1--3.
+\end{thebibliography}
+
+\end{document}

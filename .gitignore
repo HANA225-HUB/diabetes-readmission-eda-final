@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+
+# Course/raw data are intentionally not committed.
+diabetic_data.csv
+IDS_mapping.csv
+data/
+
+# Large/generated experiment artifacts.
+*.npz
+*.pkl
+*.joblib
+logs/
+build/
+figures/
+optimization/results/
